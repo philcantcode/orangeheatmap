@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>House Heating Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Left Panel - Tools */
+        #toolPanel {
+            width: 280px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #444;
+        }
+
+        .tool-section {
+            margin-bottom: 25px;
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .tool-section h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #4CAF50;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tool-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #444;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .tool-button:hover {
+            background: #555;
+            transform: translateY(-1px);
+        }
+
+        .tool-button.active {
+            background: #4CAF50;
+        }
+
+        .property-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: #444;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .property-label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #aaa;
+        }
+
+        /* Main Canvas Area */
+        #canvasContainer {
+            flex: 1;
+            position: relative;
+            background: #222;
+        }
+
+        #simulationCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Right Panel - Properties */
+        #propertyPanel {
+            width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #444;
+        }
+
+        /* Top Control Bar */
+        #controlBar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(42, 42, 42, 0.95);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            background: #444;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .control-button:hover {
+            background: #555;
+        }
+
+        .control-button.active {
+            background: #4CAF50;
+        }
+
+        /* Temperature Display */
+        #tempDisplay {
+            position: absolute;
+            bottom: 20px;
+            right: 320px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        .temp-reading {
+            margin-bottom: 5px;
+        }
+
+        .temp-value {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        /* Legend */
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 15px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        /* Slider Styles */
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            margin: 10px 0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #4CAF50;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        /* Loading Screen */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.5s;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #444;
+            border-top: 3px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Modal for Save/Load */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #4CAF50;
+        }
+
+        .modal-button {
+            padding: 10px 20px;
+            margin-right: 10px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .modal-button:hover {
+            background: #45a049;
+        }
+
+        .modal-button.secondary {
+            background: #666;
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 150;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen">
+        <div class="loader"></div>
+    </div>
+
+    <div id="app">
+        <!-- Left Tool Panel -->
+        <div id="toolPanel">
+            <div class="tool-section">
+                <h3>Drawing Tools</h3>
+                <button class="tool-button active" data-tool="wall">Draw Walls</button>
+                <button class="tool-button" data-tool="door">Add Door</button>
+                <button class="tool-button" data-tool="window">Add Window</button>
+                <button class="tool-button" data-tool="radiator">Place Radiator</button>
+                <button class="tool-button" data-tool="underfloor">Underfloor Heating</button>
+                <button class="tool-button" data-tool="select">Select/Edit</button>
+                <button class="tool-button" data-tool="delete">Delete</button>
+            </div>
+
+            <div class="tool-section">
+                <h3>Environmental Settings</h3>
+                <label class="property-label">External Temperature (°C)</label>
+                <input type="range" id="extTemp" min="-10" max="35" value="5" class="property-input">
+                <span id="extTempValue">5°C</span>
+                
+                <label class="property-label">Wind Speed (mph)</label>
+                <input type="range" id="windSpeed" min="0" max="50" value="10" class="property-input">
+                <span id="windSpeedValue">10 mph</span>
+            </div>
+
+            <div class="tool-section">
+                <h3>Quick Templates</h3>
+                <button class="tool-button" onclick="loadTemplate('terraced')">Terraced House</button>
+                <button class="tool-button" onclick="loadTemplate('detached')">Detached House</button>
+                <button class="tool-button" onclick="loadTemplate('flat')">Flat/Apartment</button>
+            </div>
+
+            <div class="tool-section">
+                <h3>Simulation</h3>
+                <button class="tool-button" id="runSimulation">Run Simulation</button>
+                <button class="tool-button" id="pauseSimulation">Pause</button>
+                <button class="tool-button" id="resetSimulation">Reset</button>
+                
+                <label class="property-label">Time Scale</label>
+                <input type="range" id="timeScale" min="1" max="60" value="10" class="property-input">
+                <span id="timeScaleValue">10x</span>
+            </div>
+        </div>
+
+        <!-- Main Canvas Container -->
+        <div id="canvasContainer">
+            <div id="controlBar">
+                <button class="control-button active" data-view="heatmap">Heat Map</button>
+                <button class="control-button" data-view="airflow">Air Flow</button>
+                <button class="control-button" data-view="structure">Structure Only</button>
+                <button class="control-button" data-view="combined">Combined View</button>
+                
+                <div style="flex: 1;"></div>
+                
+                <button class="control-button" onclick="saveConfiguration()">Save</button>
+                <button class="control-button" onclick="loadConfiguration()">Load</button>
+                <button class="control-button" onclick="exportImage()">Export Image</button>
+            </div>
+            
+            <canvas id="simulationCanvas"></canvas>
+            
+            <div id="tempDisplay">
+                <div class="temp-reading">Average: <span class="temp-value" id="avgTemp">20°C</span></div>
+                <div class="temp-reading">Min: <span class="temp-value" id="minTemp">18°C</span></div>
+                <div class="temp-reading">Max: <span class="temp-value" id="maxTemp">23°C</span></div>
+            </div>
+            
+            <div id="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff0000;"></div>
+                    <span>30°C+</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ff8800;"></div>
+                    <span>25°C</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffff00;"></div>
+                    <span>20°C</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #00ff00;"></div>
+                    <span>15°C</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #0088ff;"></div>
+                    <span>10°C</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #0000ff;"></div>
+                    <span>5°C-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Property Panel -->
+        <div id="propertyPanel">
+            <div class="tool-section">
+                <h3>Selected Element Properties</h3>
+                <div id="selectedProperties">
+                    <p style="color: #666;">Select an element to edit its properties</p>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Material Library</h3>
+                <label class="property-label">Wall Type</label>
+                <select class="property-input" id="wallMaterial">
+                    <option value="brick">Brick (U=2.0)</option>
+                    <option value="cavity">Cavity Wall (U=0.3)</option>
+                    <option value="timber">Timber Frame (U=0.25)</option>
+                    <option value="concrete">Concrete (U=3.5)</option>
+                </select>
+                
+                <label class="property-label">Insulation</label>
+                <select class="property-input" id="insulation">
+                    <option value="none">None</option>
+                    <option value="standard">Standard (100mm)</option>
+                    <option value="enhanced">Enhanced (200mm)</option>
+                    <option value="passivhaus">Passivhaus (300mm)</option>
+                </select>
+                
+                <label class="property-label">Window Type</label>
+                <select class="property-input" id="windowType">
+                    <option value="single">Single Glazed (U=5.8)</option>
+                    <option value="double">Double Glazed (U=2.8)</option>
+                    <option value="triple">Triple Glazed (U=1.0)</option>
+                </select>
+            </div>
+
+            <div class="tool-section">
+                <h3>Heating System</h3>
+                <label class="property-label">System Type</label>
+                <select class="property-input" id="heatingSystem">
+                    <option value="gas">Gas Central Heating</option>
+                    <option value="electric">Electric Heating</option>
+                    <option value="heatpump">Heat Pump</option>
+                    <option value="underfloor">Underfloor Heating</option>
+                </select>
+                
+                <label class="property-label">Target Temperature (°C)</label>
+                <input type="number" class="property-input" id="targetTemp" value="21" min="10" max="30">
+                
+                <label class="property-label">Heating Power (kW)</label>
+                <input type="number" class="property-input" id="heatingPower" value="15" min="5" max="50">
+            </div>
+
+            <div class="tool-section">
+                <h3>Statistics</h3>
+                <div style="font-size: 13px; line-height: 1.6;">
+                    <div>Total Area: <span id="totalArea" style="color: #4CAF50;">0 m²</span></div>
+                    <div>Heat Loss: <span id="heatLoss" style="color: #ff8800;">0 W</span></div>
+                    <div>Energy Usage: <span id="energyUsage" style="color: #4CAF50;">0 kWh/day</span></div>
+                    <div>Efficiency: <span id="efficiency" style="color: #4CAF50;">0%</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save/Load Modal -->
+    <div id="saveLoadModal" class="modal">
+        <div class="modal-content">
+            <h2 class="modal-title" id="modalTitle">Save Configuration</h2>
+            <textarea id="configData" style="width: 100%; height: 200px; background: #444; color: white; border: 1px solid #666; border-radius: 4px; padding: 10px; margin-bottom: 20px;"></textarea>
+            <button class="modal-button" onclick="confirmSaveLoad()">Confirm</button>
+            <button class="modal-button secondary" onclick="closeSaveLoadModal()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+
+// Main application state
+const app = {
+    canvas: null,
+    ctx: null,
+    currentTool: 'wall',
+    viewMode: 'heatmap',
+    isSimulating: false,
+    timeScale: 10,
+    gridSize: 20,
+    walls: [],
+    doors: [],
+    windows: [],
+    radiators: [],
+    underfloorZones: [],
+    selectedElement: null,
+    tempGrid: [],
+    airflowGrid: [],
+    mousePos: { x: 0, y: 0 },
+    isDrawing: false,
+    drawStart: null,
+    externalTemp: 5,
+    windSpeed: 10,
+    targetTemp: 21,
+    heatingPower: 15,
+    animationFrame: 0
+};
+
+// Material properties (U-values in W/m²K)
+const materials = {
+    walls: {
+        brick: { uValue: 2.0, thickness: 0.3, color: '#8B4513' },
+        cavity: { uValue: 0.3, thickness: 0.35, color: '#A0522D' },
+        timber: { uValue: 0.25, thickness: 0.25, color: '#DEB887' },
+        concrete: { uValue: 3.5, thickness: 0.3, color: '#696969' }
+    },
+    windows: {
+        single: { uValue: 5.8, color: '#87CEEB' },
+        double: { uValue: 2.8, color: '#4682B4' },
+        triple: { uValue: 1.0, color: '#1E90FF' }
+    },
+    doors: {
+        standard: { uValue: 3.0, color: '#654321' },
+        insulated: { uValue: 1.0, color: '#8B4513' }
+    }
+};
+
+// Initialize the application
+function init() {
+    app.canvas = document.getElementById('simulationCanvas');
+    app.ctx = app.canvas.getContext('2d');
+    
+    resizeCanvas();
+    setupEventListeners();
+    initializeGrid();
+    
+    // Hide loading screen
+    setTimeout(() => {
+        document.getElementById('loadingScreen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('loadingScreen').style.display = 'none';
+        }, 500);
+    }, 1000);
+    
+    // Start rendering loop
+    requestAnimationFrame(render);
+}
+
+// Resize canvas to fit container
+function resizeCanvas() {
+    const container = document.getElementById('canvasContainer');
+    app.canvas.width = container.clientWidth;
+    app.canvas.height = container.clientHeight - 50; // Account for control bar
+    app.canvas.style.top = '50px';
+    initializeGrid();
+}
+
+// Initialize temperature grid
+function initializeGrid() {
+    const cols = Math.floor(app.canvas.width / app.gridSize);
+    const rows = Math.floor(app.canvas.height / app.gridSize);
+    
+    app.tempGrid = [];
+    app.airflowGrid = [];
+    
+    for (let i = 0; i < rows; i++) {
+        app.tempGrid[i] = [];
+        app.airflowGrid[i] = [];
+        for (let j = 0; j < cols; j++) {
+            app.tempGrid[i][j] = app.externalTemp;
+            app.airflowGrid[i][j] = { vx: 0, vy: 0 };
+        }
+    }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Tool buttons
+    document.querySelectorAll('.tool-button[data-tool]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.tool-button[data-tool]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            app.currentTool = btn.dataset.tool;
+        });
+    });
+
+    // View mode buttons
+    document.querySelectorAll('.control-button[data-view]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.control-button[data-view]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            app.viewMode = btn.dataset.view;
+        });
+    });
+
+    // Canvas mouse events
+    app.canvas.addEventListener('mousedown', handleMouseDown);
+    app.canvas.addEventListener('mousemove', handleMouseMove);
+    app.canvas.addEventListener('mouseup', handleMouseUp);
+    app.canvas.addEventListener('click', handleClick);
+
+    // Environmental controls
+    document.getElementById('extTemp').addEventListener('input', (e) => {
+        app.externalTemp = parseFloat(e.target.value);
+        document.getElementById('extTempValue').textContent = `${app.externalTemp}°C`;
+    });
+
+    document.getElementById('windSpeed').addEventListener('input', (e) => {
+        app.windSpeed = parseFloat(e.target.value);
+        document.getElementById('windSpeedValue').textContent = `${app.windSpeed} mph`;
+    });
+
+    document.getElementById('timeScale').addEventListener('input', (e) => {
+        app.timeScale = parseFloat(e.target.value);
+        document.getElementById('timeScaleValue').textContent = `${app.timeScale}x`;
+    });
+
+    // Simulation controls
+    document.getElementById('runSimulation').addEventListener('click', startSimulation);
+    document.getElementById('pauseSimulation').addEventListener('click', pauseSimulation);
+    document.getElementById('resetSimulation').addEventListener('click', resetSimulation);
+
+    // Window resize
+    window.addEventListener('resize', resizeCanvas);
+}
+
+// Mouse event handlers
+function handleMouseDown(e) {
+    const rect = app.canvas.getBoundingClientRect();
+    app.mousePos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+
+    if (app.currentTool === 'wall') {
+        app.isDrawing = true;
+        app.drawStart = { ...app.mousePos };
+    } else if (app.currentTool === 'select') {
+        selectElement(app.mousePos);
+    }
+}
+
+function handleMouseMove(e) {
+    const rect = app.canvas.getBoundingClientRect();
+    app.mousePos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
+
+function handleMouseUp(e) {
+    if (app.isDrawing && app.currentTool === 'wall' && app.drawStart) {
+        const wall = {
+            start: snapToGrid(app.drawStart),
+            end: snapToGrid(app.mousePos),
+            material: document.getElementById('wallMaterial').value,
+            insulation: document.getElementById('insulation').value
+        };
+        
+        if (getDistance(wall.start, wall.end) > app.gridSize) {
+            app.walls.push(wall);
+        }
+    }
+    
+    app.isDrawing = false;
+    app.drawStart = null;
+}
+
+function handleClick(e) {
+    if (app.currentTool === 'wall' || app.currentTool === 'select') return;
+    
+    const pos = snapToGrid(app.mousePos);
+    
+    switch (app.currentTool) {
+        case 'door':
+            app.doors.push({
+                position: pos,
+                width: 40,
+                height: 80,
+                type: 'standard'
+            });
+            break;
+            
+        case 'window':
+            app.windows.push({
+                position: pos,
+                width: 60,
+                height: 60,
+                type: document.getElementById('windowType').value
+            });
+            break;
+            
+        case 'radiator':
+            app.radiators.push({
+                position: pos,
+                power: 2000, // Watts
+                temperature: 60,
+                active: true
+            });
+            break;
+            
+        case 'delete':
+            deleteElementAt(app.mousePos);
+            break;
+    }
+}
+
+// Utility functions
+function snapToGrid(pos) {
+    return {
+        x: Math.round(pos.x / app.gridSize) * app.gridSize,
+        y: Math.round(pos.y / app.gridSize) * app.gridSize
+    };
+}
+
+function getDistance(p1, p2) {
+    return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+}
+
+function selectElement(pos) {
+    app.selectedElement = null;
+    
+    // Check walls
+    for (let wall of app.walls) {
+        if (isPointNearLine(pos, wall.start, wall.end, 10)) {
+            app.selectedElement = { type: 'wall', element: wall };
+            updatePropertyPanel();
+            return;
+        }
+    }
+    
+    // Check radiators
+    for (let radiator of app.radiators) {
+        if (getDistance(pos, radiator.position) < 30) {
+            app.selectedElement = { type: 'radiator', element: radiator };
+            updatePropertyPanel();
+            return;
+        }
+    }
+    
+    // Check doors
+    for (let door of app.doors) {
+        if (Math.abs(pos.x - door.position.x) < door.width/2 && 
+            Math.abs(pos.y - door.position.y) < door.height/2) {
+            app.selectedElement = { type: 'door', element: door };
+            updatePropertyPanel();
+            return;
+        }
+    }
+    
+    // Check windows
+    for (let window of app.windows) {
+        if (Math.abs(pos.x - window.position.x) < window.width/2 && 
+            Math.abs(pos.y - window.position.y) < window.height/2) {
+            app.selectedElement = { type: 'window', element: window };
+            updatePropertyPanel();
+            return;
+        }
+    }
+    
+    updatePropertyPanel();
+}
+
+function isPointNearLine(point, lineStart, lineEnd, threshold) {
+    const A = point.x - lineStart.x;
+    const B = point.y - lineStart.y;
+    const C = lineEnd.x - lineStart.x;
+    const D = lineEnd.y - lineStart.y;
+    
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+    
+    if (lenSq !== 0) param = dot / lenSq;
+    
+    let xx, yy;
+    
+    if (param < 0) {
+        xx = lineStart.x;
+        yy = lineStart.y;
+    } else if (param > 1) {
+        xx = lineEnd.x;
+        yy = lineEnd.y;
+    } else {
+        xx = lineStart.x + param * C;
+        yy = lineStart.y + param * D;
+    }
+    
+    const dx = point.x - xx;
+    const dy = point.y - yy;
+    
+    return Math.sqrt(dx * dx + dy * dy) < threshold;
+}
+
+function deleteElementAt(pos) {
+    app.walls = app.walls.filter(wall => !isPointNearLine(pos, wall.start, wall.end, 10));
+    app.radiators = app.radiators.filter(rad => getDistance(pos, rad.position) > 30);
+    app.doors = app.doors.filter(door => 
+        !(Math.abs(pos.x - door.position.x) < door.width/2 && 
+          Math.abs(pos.y - door.position.y) < door.height/2));
+    app.windows = app.windows.filter(window => 
+        !(Math.abs(pos.x - window.position.x) < window.width/2 && 
+          Math.abs(pos.y - window.position.y) < window.height/2));
+}
+
+function updatePropertyPanel() {
+    const propDiv = document.getElementById('selectedProperties');
+    
+    if (!app.selectedElement) {
+        propDiv.innerHTML = '<p style="color: #666;">Select an element to edit its properties</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    if (app.selectedElement.type === 'wall') {
+        html = `
+            <label class="property-label">Wall Material</label>
+            <select class="property-input" onchange="updateSelectedWall('material', this.value)">
+                <option value="brick" ${app.selectedElement.element.material === 'brick' ? 'selected' : ''}>Brick</option>
+                <option value="cavity" ${app.selectedElement.element.material === 'cavity' ? 'selected' : ''}>Cavity Wall</option>
+                <option value="timber" ${app.selectedElement.element.material === 'timber' ? 'selected' : ''}>Timber Frame</option>
+                <option value="concrete" ${app.selectedElement.element.material === 'concrete' ? 'selected' : ''}>Concrete</option>
+            </select>
+            <label class="property-label">Insulation</label>
+            <select class="property-input" onchange="updateSelectedWall('insulation', this.value)">
+                <option value="none" ${app.selectedElement.element.insulation === 'none' ? 'selected' : ''}>None</option>
+                <option value="standard" ${app.selectedElement.element.insulation === 'standard' ? 'selected' : ''}>Standard</option>
+                <option value="enhanced" ${app.selectedElement.element.insulation === 'enhanced' ? 'selected' : ''}>Enhanced</option>
+                <option value="passivhaus" ${app.selectedElement.element.insulation === 'passivhaus' ? 'selected' : ''}>Passivhaus</option>
+            </select>
+        `;
+    } else if (app.selectedElement.type === 'radiator') {
+        html = `
+            <label class="property-label">Power (W)</label>
+            <input type="number" class="property-input" value="${app.selectedElement.element.power}" 
+                   onchange="updateSelectedRadiator('power', this.value)">
+            
+            <label class="property-label">Temperature (°C)</label>
+            <input type="number" class="property-input" value="${app.selectedElement.element.temperature}" 
+                   onchange="updateSelectedRadiator('temperature', this.value)">
+            
+            <label class="property-label">Active</label>
+            <input type="checkbox" ${app.selectedElement.element.active ? 'checked' : ''} 
+                   onchange="updateSelectedRadiator('active', this.checked)">
+        `;
+    }
+    
+    propDiv.innerHTML = html;
+}
+
+function updateSelectedWall(property, value) {
+    if (app.selectedElement && app.selectedElement.type === 'wall') {
+        app.selectedElement.element[property] = value;
+    }
+}
+
+function updateSelectedRadiator(property, value) {
+    if (app.selectedElement && app.selectedElement.type === 'radiator') {
+        if (property === 'power' || property === 'temperature') {
+            app.selectedElement.element[property] = parseFloat(value);
+        } else {
+            app.selectedElement.element[property] = value;
+        }
+    }
+}
+
+// Physics simulation
+function startSimulation() {
+    app.isSimulating = true;
+    document.getElementById('runSimulation').classList.add('active');
+    simulationLoop();
+}
+
+function pauseSimulation() {
+    app.isSimulating = false;
+    document.getElementById('runSimulation').classList.remove('active');
+}
+
+function resetSimulation() {
+    app.isSimulating = false;
+    initializeGrid();
+    document.getElementById('runSimulation').classList.remove('active');
+}
+
+function simulationLoop() {
+    if (!app.isSimulating) return;
+    
+    // Update physics
+    updateHeatTransfer();
+    updateAirflow();
+    updateStatistics();
+    
+    // Continue loop
+    setTimeout(() => {
+        requestAnimationFrame(simulationLoop);
+    }, 1000 / (60 * app.timeScale));
+}
+
+function updateHeatTransfer() {
+    const cols = app.tempGrid[0].length;
+    const rows = app.tempGrid.length;
+    const newGrid = JSON.parse(JSON.stringify(app.tempGrid));
+    
+    // Apply heat sources
+    for (let radiator of app.radiators) {
+        if (!radiator.active) continue;
+        
+        const gridX = Math.floor(radiator.position.x / app.gridSize);
+        const gridY = Math.floor(radiator.position.y / app.gridSize);
+        
+        // Heat radiates outward
+        const radius = 5;
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const y = gridY + dy;
+                const x = gridX + dx;
+                
+                if (x >= 0 && x < cols && y >= 0 && y < rows) {
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist <= radius) {
+                        const heatTransfer = (radiator.temperature - newGrid[y][x]) * 
+                                           (1 - dist / radius) * 0.1;
+                        newGrid[y][x] += heatTransfer;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Apply conduction
+    for (let y = 1; y < rows - 1; y++) {
+        for (let x = 1; x < cols - 1; x++) {
+            const center = app.tempGrid[y][x];
+            const neighbors = [
+                app.tempGrid[y-1][x],
+                app.tempGrid[y+1][x],
+                app.tempGrid[y][x-1],
+                app.tempGrid[y][x+1]
+            ];
+            
+            // Check for walls
+            let conductivity = 0.25; // Air conductivity
+            if (isWallAt(x * app.gridSize, y * app.gridSize)) {
+                conductivity = 0.05; // Reduced through walls
+            }
+            
+            // Heat diffusion
+            let heatFlow = 0;
+            for (let neighbor of neighbors) {
+                heatFlow += (neighbor - center) * conductivity;
+            }
+            
+            newGrid[y][x] += heatFlow * 0.1;
+            
+            // Apply external temperature at boundaries
+            if (x === 0 || x === cols - 1 || y === 0 || y === rows - 1) {
+                newGrid[y][x] = (newGrid[y][x] * 0.9) + (app.externalTemp * 0.1);
+            }
+        }
+    }
+    
+    // Convection - warm air rises
+    for (let y = 1; y < rows - 1; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (newGrid[y][x] > newGrid[y-1][x]) {
+                const diff = (newGrid[y][x] - newGrid[y-1][x]) * 0.05;
+                newGrid[y][x] -= diff;
+                newGrid[y-1][x] += diff;
+            }
+        }
+    }
+    
+    app.tempGrid = newGrid;
+}
+
+function updateAirflow() {
+    const cols = app.airflowGrid[0].length;
+    const rows = app.airflowGrid.length;
+    
+    for (let y = 1; y < rows - 1; y++) {
+        for (let x = 1; x < cols - 1; x++) {
+            // Temperature differences create air movement
+            const tempGradX = (app.tempGrid[y][x+1] - app.tempGrid[y][x-1]) / 2;
+            const tempGradY = (app.tempGrid[y+1][x] - app.tempGrid[y-1][x]) / 2;
+            
+            // Buoyancy effect
+            const buoyancy = (app.tempGrid[y][x] - 20) * 0.01;
+            
+            app.airflowGrid[y][x].vx = tempGradX * 0.1;
+            app.airflowGrid[y][x].vy = -buoyancy + tempGradY * 0.1;
+            
+            // Damping
+            app.airflowGrid[y][x].vx *= 0.95;
+            app.airflowGrid[y][x].vy *= 0.95;
+        }
+    }
+}
+
+function isWallAt(x, y) {
+    for (let wall of app.walls) {
+        if (isPointNearLine({x, y}, wall.start, wall.end, app.gridSize / 2)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function updateStatistics() {
+    const temps = [];
+    let totalArea = 0;
+    let heatLoss = 0;
+    
+    for (let row of app.tempGrid) {
+        for (let temp of row) {
+            temps.push(temp);
+        }
+    }
+    
+    const avgTemp = temps.reduce((a, b) => a + b, 0) / temps.length;
+    const minTemp = Math.min(...temps);
+    const maxTemp = Math.max(...temps);
+    
+    document.getElementById('avgTemp').textContent = `${avgTemp.toFixed(1)}°C`;
+    document.getElementById('minTemp').textContent = `${minTemp.toFixed(1)}°C`;
+    document.getElementById('maxTemp').textContent = `${maxTemp.toFixed(1)}°C`;
+    
+    // Calculate heat loss through walls
+    for (let wall of app.walls) {
+        const wallLength = getDistance(wall.start, wall.end) / 100; // Convert to meters
+        const wallHeight = 2.5; // Standard ceiling height
+        const wallArea = wallLength * wallHeight;
+        const material = materials.walls[wall.material];
+        const tempDiff = avgTemp - app.externalTemp;
+        
+        heatLoss += material.uValue * wallArea * tempDiff;
+        totalArea += wallArea;
+    }
+    
+    // Calculate heat loss through windows
+    for (let window of app.windows) {
+        const windowArea = (window.width * window.height) / 10000; // Convert to m²
+        const windowMaterial = materials.windows[window.type];
+        const tempDiff = avgTemp - app.externalTemp;
+        
+        heatLoss += windowMaterial.uValue * windowArea * tempDiff;
+    }
+    
+    const energyUsage = (heatLoss * 24) / 1000; // kWh per day
+    const efficiency = Math.min(100, (avgTemp - app.externalTemp) / (app.targetTemp - app.externalTemp) * 100);
+    
+    document.getElementById('totalArea').textContent = `${totalArea.toFixed(1)} m²`;
+    document.getElementById('heatLoss').textContent = `${heatLoss.toFixed(0)} W`;
+    document.getElementById('energyUsage').textContent = `${energyUsage.toFixed(1)} kWh/day`;
+    document.getElementById('efficiency').textContent = `${Math.max(0, efficiency).toFixed(0)}%`;
+}
+
+// Rendering functions
+function render() {
+    app.ctx.clearRect(0, 0, app.canvas.width, app.canvas.height);
+    app.animationFrame++;
+    
+    // Draw grid
+    drawGrid();
+    
+    // Draw heat map or other visualizations
+    switch (app.viewMode) {
+        case 'heatmap':
+            drawHeatMap();
+            break;
+        case 'airflow':
+            drawAirflow();
+            break;
+        case 'structure':
+            // Just show structure
+            break;
+        case 'combined':
+            drawHeatMap();
+            drawAirflow();
+            break;
+    }
+    
+    // Draw structure elements
+    drawWalls();
+    drawDoors();
+    drawWindows();
+    drawRadiators();
+    
+    // Draw preview if drawing
+    if (app.isDrawing && app.drawStart) {
+        app.ctx.strokeStyle = '#fff';
+        app.ctx.lineWidth = 2;
+        app.ctx.setLineDash([5, 5]);
+        app.ctx.beginPath();
+        app.ctx.moveTo(app.drawStart.x, app.drawStart.y);
+        app.ctx.lineTo(app.mousePos.x, app.mousePos.y);
+        app.ctx.stroke();
+        app.ctx.setLineDash([]);
+    }
+    
+    requestAnimationFrame(render);
+}
+
+function drawGrid() {
+    app.ctx.strokeStyle = '#333';
+    app.ctx.lineWidth = 0.5;
+    
+    for (let x = 0; x <= app.canvas.width; x += app.gridSize) {
+        app.ctx.beginPath();
+        app.ctx.moveTo(x, 0);
+        app.ctx.lineTo(x, app.canvas.height);
+        app.ctx.stroke();
+    }
+    
+    for (let y = 0; y <= app.canvas.height; y += app.gridSize) {
+        app.ctx.beginPath();
+        app.ctx.moveTo(0, y);
+        app.ctx.lineTo(app.canvas.width, y);
+        app.ctx.stroke();
+    }
+}
+
+function drawHeatMap() {
+    const cols = app.tempGrid[0].length;
+    const rows = app.tempGrid.length;
+    
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const temp = app.tempGrid[y][x];
+            const color = tempToColor(temp);
+            
+            app.ctx.fillStyle = color;
+            app.ctx.fillRect(x * app.gridSize, y * app.gridSize, app.gridSize, app.gridSize);
+        }
+    }
+}
+
+function tempToColor(temp) {
+    // Map temperature to color gradient
+    const minTemp = -10;
+    const maxTemp = 35;
+    const normalized = Math.max(0, Math.min(1, (temp - minTemp) / (maxTemp - minTemp)));
+    
+    let r, g, b;
+    
+    if (normalized < 0.2) {
+        // Blue to cyan
+        r = 0;
+        g = Math.floor(normalized * 5 * 255);
+        b = 255;
+    } else if (normalized < 0.4) {
+        // Cyan to green
+        r = 0;
+        g = 255;
+        b = Math.floor((1 - (normalized - 0.2) * 5) * 255);
+    } else if (normalized < 0.6) {
+        // Green to yellow
+        r = Math.floor((normalized - 0.4) * 5 * 255);
+        g = 255;
+        b = 0;
+    } else if (normalized < 0.8) {
+        // Yellow to orange
+        r = 255;
+        g = Math.floor((1 - (normalized - 0.6) * 5) * 128 + 127);
+        b = 0;
+    } else {
+        // Orange to red
+        r = 255;
+        g = Math.floor((1 - (normalized - 0.8) * 5) * 127);
+        b = 0;
+    }
+    
+    return `rgba(${r}, ${g}, ${b}, 0.7)`;
+}
+
+function drawAirflow() {
+    const cols = app.airflowGrid[0].length;
+    const rows = app.airflowGrid.length;
+    
+    app.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    app.ctx.lineWidth = 1;
+    
+    for (let y = 0; y < rows; y += 2) {
+        for (let x = 0; x < cols; x += 2) {
+            const flow = app.airflowGrid[y][x];
+            const magnitude = Math.sqrt(flow.vx * flow.vx + flow.vy * flow.vy);
+            
+            if (magnitude > 0.01) {
+                const startX = x * app.gridSize + app.gridSize / 2;
+                const startY = y * app.gridSize + app.gridSize / 2;
+                const endX = startX + flow.vx * 50;
+                const endY = startY + flow.vy * 50;
+                
+                app.ctx.beginPath();
+                app.ctx.moveTo(startX, startY);
+                app.ctx.lineTo(endX, endY);
+                app.ctx.stroke();
+                
+                // Arrowhead
+                const angle = Math.atan2(flow.vy, flow.vx);
+                app.ctx.save();
+                app.ctx.translate(endX, endY);
+                app.ctx.rotate(angle);
+                app.ctx.beginPath();
+                app.ctx.moveTo(0, 0);
+                app.ctx.lineTo(-5, -2);
+                app.ctx.lineTo(-5, 2);
+                app.ctx.closePath();
+                app.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                app.ctx.fill();
+                app.ctx.restore();
+            }
+        }
+    }
+}
+
+function drawWalls() {
+    for (let wall of app.walls) {
+        const material = materials.walls[wall.material];
+        
+        app.ctx.strokeStyle = material.color;
+        app.ctx.lineWidth = 8;
+        app.ctx.lineCap = 'round';
+        
+        app.ctx.beginPath();
+        app.ctx.moveTo(wall.start.x, wall.start.y);
+        app.ctx.lineTo(wall.end.x, wall.end.y);
+        app.ctx.stroke();
+        
+        // Draw insulation if present
+        if (wall.insulation !== 'none') {
+            app.ctx.strokeStyle = '#FFB6C1';
+            app.ctx.lineWidth = 4;
+            app.ctx.setLineDash([10, 5]);
+            app.ctx.stroke();
+            app.ctx.setLineDash([]);
+        }
+        
+        // Highlight selected wall
+        if (app.selectedElement && app.selectedElement.type === 'wall' && 
+            app.selectedElement.element === wall) {
+            app.ctx.strokeStyle = '#4CAF50';
+            app.ctx.lineWidth = 2;
+            app.ctx.setLineDash([5, 5]);
+            app.ctx.stroke();
+            app.ctx.setLineDash([]);
+        }
+    }
+}
+
+function drawDoors() {
+    for (let door of app.doors) {
+        app.ctx.fillStyle = materials.doors.standard.color;
+        app.ctx.fillRect(
+            door.position.x - door.width / 2,
+            door.position.y - door.height / 2,
+            door.width,
+            door.height
+        );
+        
+        // Door handle
+        app.ctx.beginPath();
+        app.ctx.arc(
+            door.position.x + door.width / 4,
+            door.position.y,
+            5,
+            0,
+            Math.PI * 2
+        );
+        app.ctx.fillStyle = '#FFD700';
+        app.ctx.fill();
+        
+        // Highlight selected
+        if (app.selectedElement && app.selectedElement.type === 'door' && 
+            app.selectedElement.element === door) {
+            app.ctx.strokeStyle = '#4CAF50';
+            app.ctx.lineWidth = 2;
+            app.ctx.strokeRect(
+                door.position.x - door.width / 2 - 2,
+                door.position.y - door.height / 2 - 2,
+                door.width + 4,
+                door.height + 4
+            );
+}
+   }
+}
+
+function drawWindows() {
+   for (let window of app.windows) {
+       const material = materials.windows[window.type];
+       
+       // Window frame
+       app.ctx.strokeStyle = '#8B4513';
+       app.ctx.lineWidth = 4;
+       app.ctx.strokeRect(
+           window.position.x - window.width / 2,
+           window.position.y - window.height / 2,
+           window.width,
+           window.height
+       );
+       
+       // Glass
+       app.ctx.fillStyle = material.color + '44';
+       app.ctx.fillRect(
+           window.position.x - window.width / 2 + 2,
+           window.position.y - window.height / 2 + 2,
+           window.width - 4,
+           window.height - 4
+       );
+       
+       // Cross pattern
+       app.ctx.strokeStyle = '#8B4513';
+       app.ctx.lineWidth = 2;
+       app.ctx.beginPath();
+       app.ctx.moveTo(window.position.x, window.position.y - window.height / 2);
+       app.ctx.lineTo(window.position.x, window.position.y + window.height / 2);
+       app.ctx.moveTo(window.position.x - window.width / 2, window.position.y);
+       app.ctx.lineTo(window.position.x + window.width / 2, window.position.y);
+       app.ctx.stroke();
+       
+       // Highlight selected
+       if (app.selectedElement && app.selectedElement.type === 'window' && 
+           app.selectedElement.element === window) {
+           app.ctx.strokeStyle = '#4CAF50';
+           app.ctx.lineWidth = 2;
+           app.ctx.strokeRect(
+               window.position.x - window.width / 2 - 2,
+               window.position.y - window.height / 2 - 2,
+               window.width + 4,
+               window.height + 4
+           );
+       }
+   }
+}
+
+function drawRadiators() {
+   for (let radiator of app.radiators) {
+       // Radiator body
+       const gradient = app.ctx.createRadialGradient(
+           radiator.position.x, radiator.position.y, 0,
+           radiator.position.x, radiator.position.y, 30
+       );
+       
+       if (radiator.active) {
+           gradient.addColorStop(0, '#ff6600');
+           gradient.addColorStop(1, '#ff0000');
+       } else {
+           gradient.addColorStop(0, '#666');
+           gradient.addColorStop(1, '#444');
+       }
+       
+       app.ctx.fillStyle = gradient;
+       app.ctx.fillRect(
+           radiator.position.x - 30,
+           radiator.position.y - 15,
+           60,
+           30
+       );
+       
+       // Fins
+       app.ctx.strokeStyle = radiator.active ? '#ff3300' : '#555';
+       app.ctx.lineWidth = 2;
+       for (let i = -25; i <= 25; i += 10) {
+           app.ctx.beginPath();
+           app.ctx.moveTo(radiator.position.x + i, radiator.position.y - 15);
+           app.ctx.lineTo(radiator.position.x + i, radiator.position.y + 15);
+           app.ctx.stroke();
+       }
+       
+       // Heat waves animation
+       if (radiator.active && app.isSimulating) {
+           app.ctx.strokeStyle = 'rgba(255, 100, 0, 0.3)';
+           app.ctx.lineWidth = 1;
+           const time = app.animationFrame / 60;
+           for (let i = 0; i < 3; i++) {
+               const radius = 40 + i * 15 + (time * 20) % 20;
+               app.ctx.beginPath();
+               app.ctx.arc(radiator.position.x, radiator.position.y, radius, 0, Math.PI * 2);
+               app.ctx.stroke();
+           }
+       }
+       
+       // Highlight selected
+       if (app.selectedElement && app.selectedElement.type === 'radiator' && 
+           app.selectedElement.element === radiator) {
+           app.ctx.strokeStyle = '#4CAF50';
+           app.ctx.lineWidth = 2;
+           app.ctx.strokeRect(
+               radiator.position.x - 35,
+               radiator.position.y - 20,
+               70,
+               40
+           );
+       }
+   }
+}
+
+// Templates
+function loadTemplate(type) {
+   app.walls = [];
+   app.doors = [];
+   app.windows = [];
+   app.radiators = [];
+   
+   const centerX = app.canvas.width / 2;
+   const centerY = app.canvas.height / 2;
+   
+   switch (type) {
+       case 'terraced':
+           // Terraced house layout
+           app.walls = [
+               // External walls
+               { start: {x: centerX - 100, y: centerY - 150}, end: {x: centerX + 100, y: centerY - 150}, material: 'cavity', insulation: 'standard' },
+               { start: {x: centerX + 100, y: centerY - 150}, end: {x: centerX + 100, y: centerY + 150}, material: 'cavity', insulation: 'standard' },
+               { start: {x: centerX + 100, y: centerY + 150}, end: {x: centerX - 100, y: centerY + 150}, material: 'cavity', insulation: 'standard' },
+               { start: {x: centerX - 100, y: centerY + 150}, end: {x: centerX - 100, y: centerY - 150}, material: 'cavity', insulation: 'standard' },
+               // Internal wall
+               { start: {x: centerX - 100, y: centerY}, end: {x: centerX + 100, y: centerY}, material: 'brick', insulation: 'none' }
+           ];
+           
+           app.doors = [
+               { position: {x: centerX - 100, y: centerY + 75}, width: 40, height: 80, type: 'standard' },
+               { position: {x: centerX, y: centerY}, width: 40, height: 80, type: 'standard' }
+           ];
+           
+           app.windows = [
+               { position: {x: centerX - 100, y: centerY - 75}, width: 60, height: 60, type: 'double' },
+               { position: {x: centerX + 100, y: centerY - 75}, width: 60, height: 60, type: 'double' },
+               { position: {x: centerX + 100, y: centerY + 75}, width: 60, height: 60, type: 'double' }
+           ];
+           
+           app.radiators = [
+               { position: {x: centerX - 50, y: centerY - 140}, power: 2000, temperature: 60, active: true },
+               { position: {x: centerX + 50, y: centerY - 140}, power: 2000, temperature: 60, active: true },
+               { position: {x: centerX - 50, y: centerY + 140}, power: 2000, temperature: 60, active: true }
+           ];
+           break;
+           
+       case 'detached':
+           // Detached house layout
+           const size = 200;
+           app.walls = [
+               // External walls
+               { start: {x: centerX - size, y: centerY - size}, end: {x: centerX + size, y: centerY - size}, material: 'cavity', insulation: 'enhanced' },
+               { start: {x: centerX + size, y: centerY - size}, end: {x: centerX + size, y: centerY + size}, material: 'cavity', insulation: 'enhanced' },
+               { start: {x: centerX + size, y: centerY + size}, end: {x: centerX - size, y: centerY + size}, material: 'cavity', insulation: 'enhanced' },
+               { start: {x: centerX - size, y: centerY + size}, end: {x: centerX - size, y: centerY - size}, material: 'cavity', insulation: 'enhanced' },
+               // Internal walls
+               { start: {x: centerX - size, y: centerY}, end: {x: centerX, y: centerY}, material: 'brick', insulation: 'none' },
+               { start: {x: centerX, y: centerY}, end: {x: centerX, y: centerY - size}, material: 'brick', insulation: 'none' }
+           ];
+           
+           app.doors = [
+               { position: {x: centerX, y: centerY + size}, width: 50, height: 90, type: 'insulated' },
+               { position: {x: centerX - 100, y: centerY}, width: 40, height: 80, type: 'standard' },
+               { position: {x: centerX, y: centerY - 100}, width: 40, height: 80, type: 'standard' }
+           ];
+           
+           app.windows = [
+               { position: {x: centerX - size, y: centerY - 100}, width: 80, height: 80, type: 'triple' },
+               { position: {x: centerX - size, y: centerY + 100}, width: 80, height: 80, type: 'triple' },
+               { position: {x: centerX + size, y: centerY - 100}, width: 80, height: 80, type: 'triple' },
+               { position: {x: centerX + size, y: centerY + 100}, width: 80, height: 80, type: 'triple' },
+               { position: {x: centerX - 100, y: centerY - size}, width: 80, height: 80, type: 'triple' },
+               { position: {x: centerX + 100, y: centerY - size}, width: 80, height: 80, type: 'triple' }
+           ];
+           
+           app.radiators = [
+               { position: {x: centerX - 150, y: centerY - 190}, power: 2500, temperature: 60, active: true },
+               { position: {x: centerX + 50, y: centerY - 190}, power: 2500, temperature: 60, active: true },
+               { position: {x: centerX - 150, y: centerY + 190}, power: 2500, temperature: 60, active: true },
+               { position: {x: centerX + 150, y: centerY + 190}, power: 2500, temperature: 60, active: true }
+           ];
+           break;
+           
+       case 'flat':
+           // Flat/Apartment layout
+           app.walls = [
+               // External walls
+               { start: {x: centerX - 150, y: centerY - 100}, end: {x: centerX + 150, y: centerY - 100}, material: 'concrete', insulation: 'standard' },
+               { start: {x: centerX + 150, y: centerY - 100}, end: {x: centerX + 150, y: centerY + 100}, material: 'concrete', insulation: 'standard' },
+               { start: {x: centerX + 150, y: centerY + 100}, end: {x: centerX - 150, y: centerY + 100}, material: 'concrete', insulation: 'standard' },
+               { start: {x: centerX - 150, y: centerY + 100}, end: {x: centerX - 150, y: centerY - 100}, material: 'concrete', insulation: 'standard' },
+               // Internal walls
+               { start: {x: centerX - 50, y: centerY - 100}, end: {x: centerX - 50, y: centerY + 100}, material: 'brick', insulation: 'none' },
+               { start: {x: centerX + 50, y: centerY - 100}, end: {x: centerX + 50, y: centerY + 100}, material: 'brick', insulation: 'none' }
+           ];
+           
+           app.doors = [
+               { position: {x: centerX - 150, y: centerY}, width: 40, height: 80, type: 'standard' },
+               { position: {x: centerX - 50, y: centerY + 50}, width: 40, height: 80, type: 'standard' },
+               { position: {x: centerX + 50, y: centerY + 50}, width: 40, height: 80, type: 'standard' }
+           ];
+           
+           app.windows = [
+               { position: {x: centerX - 100, y: centerY - 100}, width: 60, height: 60, type: 'double' },
+               { position: {x: centerX, y: centerY - 100}, width: 60, height: 60, type: 'double' },
+               { position: {x: centerX + 100, y: centerY - 100}, width: 60, height: 60, type: 'double' }
+           ];
+           
+           app.radiators = [
+               { position: {x: centerX - 100, y: centerY - 90}, power: 1500, temperature: 60, active: true },
+               { position: {x: centerX, y: centerY - 90}, power: 1500, temperature: 60, active: true },
+               { position: {x: centerX + 100, y: centerY - 90}, power: 1500, temperature: 60, active: true }
+           ];
+           break;
+   }
+   
+   // Reset simulation
+   resetSimulation();
+}
+
+// Save/Load functions
+function saveConfiguration() {
+   const config = {
+       walls: app.walls,
+       doors: app.doors,
+       windows: app.windows,
+       radiators: app.radiators,
+       settings: {
+           externalTemp: app.externalTemp,
+           windSpeed: app.windSpeed,
+           targetTemp: app.targetTemp,
+           heatingPower: app.heatingPower
+       }
+   };
+   
+   document.getElementById('modalTitle').textContent = 'Save Configuration';
+   document.getElementById('configData').value = JSON.stringify(config, null, 2);
+   document.getElementById('saveLoadModal').style.display = 'flex';
+}
+
+function loadConfiguration() {
+   document.getElementById('modalTitle').textContent = 'Load Configuration';
+   document.getElementById('configData').value = '';
+   document.getElementById('saveLoadModal').style.display = 'flex';
+}
+
+function confirmSaveLoad() {
+   const modalTitle = document.getElementById('modalTitle').textContent;
+   const configData = document.getElementById('configData').value;
+   
+   if (modalTitle === 'Load Configuration') {
+       try {
+           const config = JSON.parse(configData);
+           app.walls = config.walls || [];
+           app.doors = config.doors || [];
+           app.windows = config.windows || [];
+           app.radiators = config.radiators || [];
+           
+           if (config.settings) {
+               app.externalTemp = config.settings.externalTemp || 5;
+               app.windSpeed = config.settings.windSpeed || 10;
+               app.targetTemp = config.settings.targetTemp || 21;
+               app.heatingPower = config.settings.heatingPower || 15;
+               
+               // Update UI
+               document.getElementById('extTemp').value = app.externalTemp;
+               document.getElementById('extTempValue').textContent = `${app.externalTemp}°C`;
+               document.getElementById('windSpeed').value = app.windSpeed;
+               document.getElementById('windSpeedValue').textContent = `${app.windSpeed} mph`;
+           }
+           
+           resetSimulation();
+           alert('Configuration loaded successfully!');
+       } catch (e) {
+           alert('Invalid configuration data!');
+       }
+   }
+   
+   closeSaveLoadModal();
+}
+
+function closeSaveLoadModal() {
+   document.getElementById('saveLoadModal').style.display = 'none';
+}
+
+function exportImage() {
+   const link = document.createElement('a');
+   link.download = 'house-heating-simulation.png';
+   link.href = app.canvas.toDataURL();
+   link.click();
+}
+
+// Add event listeners for template buttons
+window.addEventListener('load', () => {
+   document.getElementById('template-terraced').addEventListener('click', () => loadTemplate('terraced'));
+   document.getElementById('template-detached').addEventListener('click', () => loadTemplate('detached'));
+   document.getElementById('template-flat').addEventListener('click', () => loadTemplate('flat'));
+   
+   document.getElementById('saveBtn').addEventListener('click', saveConfiguration);
+   document.getElementById('loadBtn').addEventListener('click', loadConfiguration);
+   document.getElementById('exportBtn').addEventListener('click', exportImage);
+});
+
+// Initialize the application when page loads
+window.addEventListener('load', init);
+    </script>
