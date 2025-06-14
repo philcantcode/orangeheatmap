@@ -942,11 +942,8 @@ function updateHeatTransfer() {
                 app.tempGrid[y][x+1]
             ];
             
-            // Check for walls
-            let conductivity = 0.25; // Air conductivity
-            if (isWallAt(x * app.gridSize, y * app.gridSize)) {
-                conductivity = 0.05; // Reduced through walls
-            }
+            // Determine conductivity based on local material
+            const conductivity = getConductivityAt(x * app.gridSize, y * app.gridSize);
             
             // Heat diffusion
             let heatFlow = 0;
@@ -1007,6 +1004,38 @@ function isWallAt(x, y) {
         }
     }
     return false;
+}
+
+// Determine local thermal conductivity based on structure
+function getConductivityAt(x, y) {
+    // Check walls
+    for (let wall of app.walls) {
+        if (isPointNearLine({x, y}, wall.start, wall.end, app.gridSize / 2)) {
+            const material = materials.walls[wall.material];
+            return material.uValue / 10; // lower U-value -> less conductivity
+        }
+    }
+
+    // Check doors
+    for (let door of app.doors) {
+        if (Math.abs(x - door.position.x) < door.width / 2 &&
+            Math.abs(y - door.position.y) < door.height / 2) {
+            const material = materials.doors[door.type];
+            return material.uValue / 10;
+        }
+    }
+
+    // Check windows
+    for (let window of app.windows) {
+        if (Math.abs(x - window.position.x) < window.width / 2 &&
+            Math.abs(y - window.position.y) < window.height / 2) {
+            const material = materials.windows[window.type];
+            return material.uValue / 10;
+        }
+    }
+
+    // Default air conductivity
+    return 0.25;
 }
 
 function updateStatistics() {
